@@ -6,6 +6,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import QTimer, Qt
 
+from ..filters.grayscale import *
+
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -53,22 +55,35 @@ class MainWindow(QWidget):
         self.zoom_out_button = QPushButton("Diminuir Zoom")
         controls_layout.addWidget(self.zoom_out_button)
         self.zoom_out_button.clicked.connect(self.zoom_out)
+        
+        self.checkbox_is_cascata = QPushButton("Cascata")
+        controls_layout.addWidget(self.checkbox_is_cascata)
+        self.checkbox_is_cascata.clicked.connect(self.toggle_cascata)
+        
+        # Dropdown Filtros
+        self.filter_selector = QComboBox()
+        self.filter_selector.addItems(["Sem Filtro","Grayscale", "Binário", "Sepia", "Blur", "aaa"])
+        controls_layout.addWidget(self.filter_selector)
 
         self.layout.addLayout(controls_layout)
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
+        
+        self.isCascata = False
 
         self.is_playing = False
         self.cap = None
         self.video_path = None
+        self.original_frame = None
         self.current_frame = None
+        self.ref_frame = self.original_frame
         self.zoom_factor = 1.0
         self.max_zoom = 2.0
         self.min_zoom = 1.0
 
         self.setAcceptDrops(True)
         
-
+        
 
     def open_file_dialog(self):
         mode = self.mode_selector.currentText()
@@ -89,6 +104,51 @@ class MainWindow(QWidget):
                 self.load_video()
         elif mode == "Webcam":
             self.start_cam()
+            
+    def update_ref_frame(self):
+        if(self.isCascata == True):
+            self.ref_frame = self.current_frame
+        else:
+            self.ref_frame = self.original_frame
+            
+            
+    def toggle_cascata(self):
+        if self.isCascata == False:
+            self.isCascata = True
+            self.checkbox_is_cascata.setText("Cascata")
+        elif self.isCascata == True:
+            self.isCascata = False
+            self.checkbox_is_cascata.setText("Independente")
+            
+        self.update_ref_frame()
+        
+    def select_filter(self):
+        filter = self.filter_selector.currentText()
+        
+        if filter == "Sem Filtro":
+            self.current_frame = self.original_frame
+            self.update_display()
+        elif filter == "Grayscale":
+            grayscale_frame = converter_cinza(self.ref_frame)
+            self.current_frame = grayscale_frame
+            self.update_display()
+        elif filter == "Binário":
+            binary_frame = conversao_binaria(self.ref_frame)
+            self.current_frame = binary_frame
+            self.update_display()
+        
+        
+            
+    
+    def apply_grayscale_filter(self):
+        if self.current_frame is None:
+            return
+        self.original_image = self.current_frame
+        
+        frame_in_grayscale = converter_cinza(self.current_frame)
+        
+        self.current_frame = frame_in_grayscale
+        self.update_display()
                 
     def start_cam(self):
         if self.cap is not None and self.cap.isOpened():
@@ -106,6 +166,7 @@ class MainWindow(QWidget):
     def display_image(self, image_path):
         self.cap = None
         self.current_frame = cv2.imread(image_path)
+        self.original_frame = self.current_frame
         self.update_display()
 
     def load_video(self):
