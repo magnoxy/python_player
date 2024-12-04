@@ -51,8 +51,8 @@ def converter_Canny(frame, limiar_min,limiar_max):
 
 ## É PRECISO PASSAR OS PARAMETROS DE INTENSIDADE: 1 - 50
 def converter_blur(frame, desfoque_horizontal, desfoque_vertical):
-    frame_convertido = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame_blur = cv2.blur(frame_convertido, ksize=(desfoque_horizontal, desfoque_vertical))
+    # frame_convertido = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    frame_blur = cv2.blur(frame, ksize=(desfoque_horizontal, desfoque_vertical))
     return frame_blur
 
 def converter_sharpen(frame):
@@ -61,8 +61,8 @@ def converter_sharpen(frame):
         [-1, 5, -1],
         [0, -1, 0]
     ])
-    frame_convertida = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame_sharp = cv2.filter2D(frame_convertida, ddepth=-1,kernel=sharpen_kernel)
+    # frame_convertida = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    frame_sharp = cv2.filter2D(frame, ddepth=-1,kernel=sharpen_kernel)
     return frame_sharp
 
 def converter_emboss(frame):
