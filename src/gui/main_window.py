@@ -22,7 +22,7 @@ class MainWindow(QWidget):
 
         # Dropdown para selecionar Imagem ou Vídeo
         self.mode_selector = QComboBox()
-        self.mode_selector.addItems(["Imagem", "Vídeo"])
+        self.mode_selector.addItems(["Imagem", "Vídeo", "Webcam"])
         self.layout.addWidget(self.mode_selector)
 
         # Botão para abrir arquivo
@@ -87,6 +87,19 @@ class MainWindow(QWidget):
                 self.video_path = file_path
                 self.play_button.setEnabled(True)  # Habilita o botão Play
                 self.load_video()
+                
+    def start_cam(self):
+        if self.cap is not None and self.cap.isOpened():
+            self.cap.release()
+            
+        self.cap = cv2.VideoCapture(0)
+            
+        if not self.cap.isOpened():
+            print("Erro: Não foi possível abrir o vídeo.")
+            return
+        
+        self.play_button.setEnabled(True)  # Habilita o botão Play
+        self.toggle_play_pause()
 
     def display_image(self, image_path):
         self.cap = None
