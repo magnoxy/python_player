@@ -12,3 +12,4 @@ def play_video(self, file_path):
         cv2.imshow("Vídeo", frame)
         if cv2.waitKey(30) & 0xFF == ord('q'):
             break
+    

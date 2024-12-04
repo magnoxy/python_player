@@ -43,6 +43,10 @@ class MainWindow(QWidget):
         controls_layout.addWidget(self.play_button)
         self.play_button.clicked.connect(self.toggle_play_pause)
         self.play_button.setEnabled(False)  # Desabilitado até que um vídeo seja selecionado
+    
+        self.video_slowMode = QPushButton("- Velocidade")
+        controls_layout.addWidget(self.video_slowMode)
+        self.video_slowMode.clicked.connect(self.slow_mode_video)
 
         # Botão Aumentar Zoom
         self.zoom_in_button = QPushButton("Aumentar Zoom")
@@ -67,7 +71,7 @@ class MainWindow(QWidget):
         self.min_zoom = 1.0
 
         self.setAcceptDrops(True)
-        
+        self.playback_speed = 30        
 
 
     def open_file_dialog(self):
@@ -141,6 +145,11 @@ class MainWindow(QWidget):
             self.zoom_factor -= 0.1
             self.update_display()
 
+    def slow_mode_video(self):
+        self.playback_speed += 10  # Aumenta o intervalo em 10ms
+        self.timer.setInterval(self.playback_speed)
+        print(f"Velocidade reduzida: {self.playback_speed}ms por frame.")
+
     def update_display(self):
         if self.current_frame is None:
             return
@@ -199,3 +208,4 @@ class MainWindow(QWidget):
             self.video_path = file_url
             self.play_button.setEnabled(True)
             self.load_video()
+    
