@@ -6,8 +6,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import QTimer, Qt
 
-from ..filters.grayscale import *
-
+from ..filters.grayscale import converter_cinza, conversao_binaria
+from ..filters.convolution import *
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -44,7 +44,7 @@ class MainWindow(QWidget):
         self.play_button = QPushButton("Play")
         controls_layout.addWidget(self.play_button)
         self.play_button.clicked.connect(self.toggle_play_pause)
-        self.play_button.setEnabled(False)  # Desabilitado até que um vídeo seja selecionado
+        self.play_button.setEnabled(False)
 
         # Botão Aumentar Zoom
         self.zoom_in_button = QPushButton("Aumentar Zoom")
@@ -55,124 +55,111 @@ class MainWindow(QWidget):
         self.zoom_out_button = QPushButton("Diminuir Zoom")
         controls_layout.addWidget(self.zoom_out_button)
         self.zoom_out_button.clicked.connect(self.zoom_out)
-        
-        self.checkbox_is_cascata = QPushButton("Cascata")
+
+        # Botão para alternar modo cascata
+        self.checkbox_is_cascata = QPushButton("Independente")
         controls_layout.addWidget(self.checkbox_is_cascata)
         self.checkbox_is_cascata.clicked.connect(self.toggle_cascata)
-        
+
         # Dropdown Filtros
         self.filter_selector = QComboBox()
-        self.filter_selector.addItems(["Sem Filtro","Grayscale", "Binário", "Sepia", "Blur", "aaa"])
+        self.filter_selector.addItems(["Sem Filtro", "Grayscale", "Binário", "Blur", "Sharpen", "Sobel", "Laplacian", "Canny", "Emboss"])
         controls_layout.addWidget(self.filter_selector)
+        self.filter_selector.currentTextChanged.connect(self.select_filter)
 
         self.layout.addLayout(controls_layout)
+
+        # Timer para atualização de frames
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
-        
-        self.isCascata = False
 
+        # Inicialização de variáveis
+        self.isCascata = False
         self.is_playing = False
         self.cap = None
         self.video_path = None
         self.original_frame = None
         self.current_frame = None
-        self.ref_frame = self.original_frame
+        self.ref_frame = None
         self.zoom_factor = 1.0
         self.max_zoom = 2.0
         self.min_zoom = 1.0
 
+        # Suporte a drag and drop
         self.setAcceptDrops(True)
-        
-        
 
     def open_file_dialog(self):
         mode = self.mode_selector.currentText()
-
         if mode == "Imagem":
-            file_path, _ = QFileDialog.getOpenFileName(
-                self, "Selecione uma Imagem", "", "Imagens (*.png *.jpg *.jpeg *.bmp)"
-            )
+            file_path, _ = QFileDialog.getOpenFileName(self, "Selecione uma Imagem", "", "Imagens (*.png *.jpg *.jpeg *.bmp)")
             if file_path:
                 self.display_image(file_path)
         elif mode == "Vídeo":
-            file_path, _ = QFileDialog.getOpenFileName(
-                self, "Selecione um Vídeo", "", "Vídeos (*.mp4 *.avi *.mkv *.mov)"
-            )
+            file_path, _ = QFileDialog.getOpenFileName(self, "Selecione um Vídeo", "", "Vídeos (*.mp4 *.avi *.mkv *.mov)")
             if file_path:
                 self.video_path = file_path
-                self.play_button.setEnabled(True)  # Habilita o botão Play
+                self.play_button.setEnabled(True)
                 self.load_video()
         elif mode == "Webcam":
             self.start_cam()
-            
-    def update_ref_frame(self):
-        if(self.isCascata == True):
-            self.ref_frame = self.current_frame
-        else:
-            self.ref_frame = self.original_frame
-            
-            
+
     def toggle_cascata(self):
-        if self.isCascata == False:
-            self.isCascata = True
-            self.checkbox_is_cascata.setText("Cascata")
-        elif self.isCascata == True:
-            self.isCascata = False
-            self.checkbox_is_cascata.setText("Independente")
-            
+        self.isCascata = not self.isCascata
+        self.checkbox_is_cascata.setText("Cascata" if self.isCascata else "Independente")
         self.update_ref_frame()
-        
+
+    def update_ref_frame(self):
+        self.ref_frame = self.current_frame if self.isCascata else self.original_frame
+
     def select_filter(self):
-        filter = self.filter_selector.currentText()
-        
-        if filter == "Sem Filtro":
-            self.current_frame = self.original_frame
-            self.update_display()
-        elif filter == "Grayscale":
-            grayscale_frame = converter_cinza(self.ref_frame)
-            self.current_frame = grayscale_frame
-            self.update_display()
-        elif filter == "Binário":
-            binary_frame = conversao_binaria(self.ref_frame)
-            self.current_frame = binary_frame
-            self.update_display()
-        
-        
-            
-    
-    def apply_grayscale_filter(self):
-        if self.current_frame is None:
+        filter_name = self.filter_selector.currentText()
+        if self.ref_frame is None:
             return
-        self.original_image = self.current_frame
-        
-        frame_in_grayscale = converter_cinza(self.current_frame)
-        
-        self.current_frame = frame_in_grayscale
+
+        if filter_name == "Sem Filtro":
+            self.current_frame = self.original_frame
+        elif filter_name == "Grayscale":
+            self.current_frame = converter_cinza(self.ref_frame)
+        elif filter_name == "Binário":
+            self.current_frame = conversao_binaria(self.ref_frame)
+        elif filter_name == "Blur":
+            self.current_frame = converter_blur(self.ref_frame, 20, 20)
+        elif filter_name == "Sharpen":
+            self.current_frame = converter_sharpen(self.ref_frame)
+        elif filter_name == "Sobel":
+            self.current_frame = transformar_sobel_positvo(converter_sobel(self.ref_frame))
+        elif filter_name == "Laplacian":
+            self.current_frame = converter_laplacian(self.ref_frame)
+        elif filter_name == "Canny":
+            self.current_frame = converter_Canny(self.ref_frame, 50, 50)
+        elif filter_name == "Emboss":
+            self.current_frame = converter_emboss(self.ref_frame)
+
         self.update_display()
-                
+
     def start_cam(self):
         if self.cap is not None and self.cap.isOpened():
             self.cap.release()
-            
+
         self.cap = cv2.VideoCapture(0)
-            
         if not self.cap.isOpened():
-            print("Erro: Não foi possível abrir o vídeo.")
+            print("Erro: Não foi possível abrir a webcam.")
             return
-        
-        self.play_button.setEnabled(True)  # Habilita o botão Play
+
+        self.play_button.setEnabled(True)
         self.toggle_play_pause()
 
     def display_image(self, image_path):
         self.cap = None
-        self.current_frame = cv2.imread(image_path)
-        self.original_frame = self.current_frame
+        self.original_frame = cv2.imread(image_path)
+        self.current_frame = self.original_frame
+        self.ref_frame = self.original_frame
         self.update_display()
 
     def load_video(self):
         if self.cap is not None and self.cap.isOpened():
-            self.cap.release()  # Libera o vídeo anterior, se houver
-        
+            self.cap.release()
+
         self.cap = cv2.VideoCapture(self.video_path)
         if not self.cap.isOpened():
             print("Erro: Não foi possível abrir o vídeo.")
@@ -181,16 +168,13 @@ class MainWindow(QWidget):
         if not self.cap or not self.cap.isOpened():
             return
 
+        self.is_playing = not self.is_playing
         if self.is_playing:
-            self.is_playing = False
-            self.timer.stop()
-            self.play_button.setText("Play")
-            print("Vídeo pausado.")
-        else:
-            self.is_playing = True
             self.timer.start(30)  # Aproximadamente 30 FPS
             self.play_button.setText("Pause")
-            print("Reproduzindo vídeo.")
+        else:
+            self.timer.stop()
+            self.play_button.setText("Play")
 
     def zoom_in(self):
         if self.zoom_factor < self.max_zoom:
@@ -206,22 +190,14 @@ class MainWindow(QWidget):
         if self.current_frame is None:
             return
 
-        # Dimensões originais do frame
         height, width = self.current_frame.shape[:2]
-
-        # Calcula as novas dimensões com base no fator de zoom
         new_width = int(width * self.zoom_factor)
         new_height = int(height * self.zoom_factor)
 
-        # Verifica se as dimensões calculadas são válidas
         if new_width <= 0 or new_height <= 0:
-            print("Dimensão inválida durante o redimensionamento!")
             return
 
-        # Redimensionar o frame com base no zoom
         resized_frame = cv2.resize(self.current_frame, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
-
-        # Converter o frame para RGB e exibir
         resized_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
         q_img = QImage(resized_frame.data, resized_frame.shape[1], resized_frame.shape[0], QImage.Format_RGB888)
         self.video_label.setPixmap(QPixmap.fromImage(q_img))
@@ -235,17 +211,15 @@ class MainWindow(QWidget):
             self.current_frame = frame
             self.update_display()
         else:
-            self.timer.stop()  # Para o timer se o vídeo terminar
+            self.timer.stop()
             self.is_playing = False
             self.play_button.setText("Play")
-            print("Fim do vídeo.")
 
     def closeEvent(self, event):
         if self.cap is not None and self.cap.isOpened():
             self.cap.release()
         event.accept()
 
-    # Métodos para drag and drop
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
             event.accept()
