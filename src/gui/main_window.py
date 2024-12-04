@@ -87,6 +87,8 @@ class MainWindow(QWidget):
                 self.video_path = file_path
                 self.play_button.setEnabled(True)  # Habilita o botão Play
                 self.load_video()
+        elif mode == "Webcam":
+            self.start_cam()
                 
     def start_cam(self):
         if self.cap is not None and self.cap.isOpened():
