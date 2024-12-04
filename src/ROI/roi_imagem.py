@@ -7,7 +7,6 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtGui import QPixmap, QImage
-#
 
 class ROISelector(QMainWindow):
     def __init__(self, frame):
