@@ -84,7 +84,7 @@ class MainWindow(QWidget):
 
         self.button_cutMode = QPushButton("🔪 OFF")
         controls_layout.addWidget(self.button_cutMode)
-        self.button_cutMode.clicked.connect(self.toggle_cut)
+        self.button_cutMode.clicked.connect(self.toggleCutButton)
         self.button_cutMode.setEnabled(False)
 
         # FIM => BOTÕES DE VÍDEO
@@ -288,13 +288,19 @@ class MainWindow(QWidget):
         else:
             print("Velocidade máxima atingida.")
 
-    def toggle_cut(self):
+    def toggleCutButton(self):
         if(self.cutting_is_on):
             self.button_cutMode.setText("🔪 OFF")
             self.cutting_is_on = False
         else:
             self.cutting_is_on = True
             self.button_cutMode.setText("🔪 ON")
+
+    def cutVideoByPressingSpaceBar(self, event):
+        if(event.key() == Qt.Key_Space and self.cutting_is_on):
+            self.frames_cut.append(self.current_frame)
+            print("Frame cortado")
+            print(len(self.frames_cut))
 
 
     def update_display(self):
