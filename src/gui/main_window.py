@@ -117,6 +117,7 @@ class MainWindow(QWidget):
         self.is_playing = False
         self.cap = None
         self.video_path = None
+        self.virtual_original_image = None
         self.original_image = None
         self.original_frame = None
         self.current_frame = None
@@ -495,6 +496,7 @@ class MainWindow(QWidget):
             x2, y2 = x1 + int(w), y1 + int(h)
 
             self.roi_frame = self.current_frame[y1:y2, x1:x2]
+            self.virtual_original_image = self.original_image[y1:y2, x1:x2]
             self.current_frame = self.roi_frame
 
             # Atualiza o frame exibido
@@ -508,6 +510,7 @@ class MainWindow(QWidget):
         
         self.current_frame = self.roi_frame
         self.original_frame = self.current_frame
+        self.original_image = self.virtual_original_image
         self.update_ref_frame()
         self.roi_frame = None;
         self.cut_image.setEnabled(False)
