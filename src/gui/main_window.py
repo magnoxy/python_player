@@ -161,8 +161,15 @@ class MainWindow(QWidget):
             self.cap.release()
 
         self.cap = cv2.VideoCapture(self.video_path)
+        
         if not self.cap.isOpened():
             print("Erro: Não foi possível abrir o vídeo.")
+        
+        ret, frame = self.cap.read()
+        if ret:
+            self.original_frame = frame
+            self.ref_frame = self.original_frame
+            self.current_frame = self.original_frame
 
     def toggle_play_pause(self):
         if not self.cap or not self.cap.isOpened():
@@ -190,17 +197,37 @@ class MainWindow(QWidget):
         if self.current_frame is None:
             return
 
-        height, width = self.current_frame.shape[:2]
-        new_width = int(width * self.zoom_factor)
-        new_height = int(height * self.zoom_factor)
+        # Dimensões do QLabel
+        label_width = self.video_label.width()
+        label_height = self.video_label.height()
 
-        if new_width <= 0 or new_height <= 0:
-            return
+        # Dimensões do frame original
+        frame_height, frame_width = self.current_frame.shape[:2]
 
+        # Calcula a proporção mantendo o aspect ratio
+        frame_aspect_ratio = frame_width / frame_height
+        label_aspect_ratio = label_width / label_height
+
+        if label_aspect_ratio > frame_aspect_ratio:
+            # Ajustar para caber na altura do QLabel
+            new_height = label_height
+            new_width = int(new_height * frame_aspect_ratio)
+        else:
+            # Ajustar para caber na largura do QLabel
+            new_width = label_width
+            new_height = int(new_width / frame_aspect_ratio)
+
+        # Redimensiona o frame mantendo a proporção
         resized_frame = cv2.resize(self.current_frame, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+
+        # Converte para RGB e QImage
         resized_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
         q_img = QImage(resized_frame.data, resized_frame.shape[1], resized_frame.shape[0], QImage.Format_RGB888)
-        self.video_label.setPixmap(QPixmap.fromImage(q_img))
+
+        # Centraliza a imagem no QLabel
+        pixmap = QPixmap.fromImage(q_img)
+        self.video_label.setPixmap(pixmap)
+        self.video_label.setAlignment(Qt.AlignCenter)
 
     def update_frame(self):
         if self.cap is None or not self.cap.isOpened():
@@ -208,8 +235,10 @@ class MainWindow(QWidget):
 
         ret, frame = self.cap.read()
         if ret:
-            self.current_frame = frame
-            self.update_display()
+            self.original_frame = frame
+            self.ref_frame = self.current_frame if self.isCascata else self.original_frame
+            self.select_filter()
+            # self.update_display()
         else:
             self.timer.stop()
             self.is_playing = False
@@ -234,3 +263,7 @@ class MainWindow(QWidget):
             self.video_path = file_url
             self.play_button.setEnabled(True)
             self.load_video()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.update_display()
