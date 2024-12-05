@@ -15,7 +15,7 @@ class MainWindow(QWidget):
 
         # Configurações da janela
         self.setWindowTitle("Teti Player")
-        self.setGeometry(100, 100, 800, 600)
+        self.setGeometry(100, 100, 1280, 800)
 
         # Layout principal
         self.layout = QVBoxLayout()
@@ -220,9 +220,17 @@ class MainWindow(QWidget):
         # Redimensiona o frame mantendo a proporção
         resized_frame = cv2.resize(self.current_frame, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
 
-        # Converte para RGB e QImage
+        # Converte para RGB (OpenCV usa BGR por padrão)
         resized_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
-        q_img = QImage(resized_frame.data, resized_frame.shape[1], resized_frame.shape[0], QImage.Format_RGB888)
+
+        # Cria o QImage de forma robusta
+        q_img = QImage(
+            resized_frame.data,
+            resized_frame.shape[1],
+            resized_frame.shape[0],
+            resized_frame.shape[1] * 3,  # Alinhamento correto para RGB
+            QImage.Format_RGB888,
+        )
 
         # Centraliza a imagem no QLabel
         pixmap = QPixmap.fromImage(q_img)
