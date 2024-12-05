@@ -33,11 +33,15 @@ def transformar_sobel_positvo (frame):
 
 def converter_laplacian(frame):
     frame_convertida = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame_gray = cv2.cvtColor(frame_convertida,cv2.COLOR_RGB2GRAY)
+    frame_gray = cv2.cvtColor(frame_convertida, cv2.COLOR_RGB2GRAY)
     frame_laplacean = cv2.Laplacian(frame_gray, cv2.CV_64F, ksize=3)
+
+    # Normalizar para intervalo 0-255 e converter para uint8
+    frame_laplacean = cv2.convertScaleAbs(frame_laplacean)
+
     return frame_laplacean
 
-## É PRECISO PASSAR OS PARAMETROS DE INTENSIDADE
+## É PRECISO PASSAR OS PARAMETROS DE INTENSIDADE: 1 - 300
 def converter_Canny(frame, limiar_min,limiar_max):
     frame_convertido = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     frame_gray = cv2.cvtColor(frame_convertido, cv2.COLOR_RGB2GRAY)
@@ -45,10 +49,10 @@ def converter_Canny(frame, limiar_min,limiar_max):
     frame_canny = cv2.Canny(img, limiar_min, limiar_max)
     return frame_canny
 
-## É PRECISO PASSAR OS PARAMETROS DE INTENSIDADE
+## É PRECISO PASSAR OS PARAMETROS DE INTENSIDADE: 1 - 50
 def converter_blur(frame, desfoque_horizontal, desfoque_vertical):
-    frame_convertido = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame_blur = cv2.blur(frame_convertido, ksize=(desfoque_horizontal, desfoque_vertical))
+    # frame_convertido = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    frame_blur = cv2.blur(frame, ksize=(desfoque_horizontal, desfoque_vertical))
     return frame_blur
 
 def converter_sharpen(frame):
@@ -57,8 +61,8 @@ def converter_sharpen(frame):
         [-1, 5, -1],
         [0, -1, 0]
     ])
-    frame_convertida = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame_sharp = cv2.filter2D(frame_convertida, ddepth=-1,kernel=sharpen_kernel)
+    # frame_convertida = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    frame_sharp = cv2.filter2D(frame, ddepth=-1,kernel=sharpen_kernel)
     return frame_sharp
 
 def converter_emboss(frame):
