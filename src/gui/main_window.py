@@ -19,7 +19,7 @@ class MainWindow(QWidget):
 
         # Layout principal
         self.layout = QVBoxLayout()
-        self.setFixedSize(800, 600)
+        self.setFixedSize(1280, 800)
         self.setLayout(self.layout)
 
         # Dropdown para selecionar Imagem ou Vídeo
@@ -146,6 +146,9 @@ class MainWindow(QWidget):
             print("Erro: Não foi possível abrir a webcam.")
             return
 
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)  # Largura (exemplo: 640 pixels)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        
         self.play_button.setEnabled(True)
         self.toggle_play_pause()
 
