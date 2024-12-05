@@ -4,14 +4,14 @@ from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QComboBox, QFileDialog, QHBoxLayout
 )
 from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtCore import QTimer, Qt, QRect
 
 from ..filters.grayscale import converter_cinza, conversao_binaria
 from ..filters.convolution import *
 
 class MainWindow(QWidget):
     def __init__(self):
-        super().__init__()
+        super().__init__() 
 
         # Configurações da janela
         self.setWindowTitle("Teti Player")
@@ -55,6 +55,12 @@ class MainWindow(QWidget):
         self.zoom_out_button = QPushButton("Diminuir Zoom")
         controls_layout.addWidget(self.zoom_out_button)
         self.zoom_out_button.clicked.connect(self.zoom_out)
+        
+        # Botão para selecionar ROI
+        self.roi_button = QPushButton("Selecionar ROI")
+        controls_layout.addWidget(self.roi_button)
+        self.roi_button.clicked.connect(self.select_roi)
+        self.roi_button.setEnabled(False)
 
         # Botão para alternar modo cascata
         self.checkbox_is_cascata = QPushButton("Independente")
@@ -78,12 +84,20 @@ class MainWindow(QWidget):
         self.is_playing = False
         self.cap = None
         self.video_path = None
+        self.original_image = None
         self.original_frame = None
         self.current_frame = None
         self.ref_frame = None
         self.zoom_factor = 1.0
         self.max_zoom = 2.0
         self.min_zoom = 1.0
+        
+         # Variáveis de controle de ROI
+        self.is_selecting_roi = False
+        self.roi_start = None
+        self.roi_end = None
+        self.roi_rect = None
+        self.roi_frame = None
 
         # Suporte a drag and drop
         self.setAcceptDrops(True)
@@ -105,19 +119,30 @@ class MainWindow(QWidget):
 
     def toggle_cascata(self):
         self.isCascata = not self.isCascata
-        self.checkbox_is_cascata.setText("Cascata" if self.isCascata else "Independente")
+        
+        if self.isCascata:
+            text = "Independente"
+        else:
+            self.original_frame = self.current_frame
+            text = "Cascata"
+            
+        self.checkbox_is_cascata.setText(text)
         self.update_ref_frame()
 
     def update_ref_frame(self):
-        self.ref_frame = self.current_frame if self.isCascata else self.original_frame
+        if self.isCascata:
+            self.ref_frame = self.current_frame  # No modo cascata, use current_frame
+        else:
+            self.ref_frame = self.original_frame
 
     def select_filter(self):
-        filter_name = self.filter_selector.currentText()
         if self.ref_frame is None:
             return
 
+        filter_name = self.filter_selector.currentText()
+        
         if filter_name == "Sem Filtro":
-            self.current_frame = self.original_frame
+            self.current_frame = self.original_image
         elif filter_name == "Grayscale":
             self.current_frame = converter_cinza(self.ref_frame)
         elif filter_name == "Binário":
@@ -155,8 +180,11 @@ class MainWindow(QWidget):
     def display_image(self, image_path):
         self.cap = None
         self.original_frame = cv2.imread(image_path)
+        self.original_image = self.original_frame
         self.current_frame = self.original_frame
         self.ref_frame = self.original_frame
+        
+        self.filter_selector.setCurrentText("Sem Filtro")
         self.update_display()
 
     def load_video(self):
@@ -171,8 +199,11 @@ class MainWindow(QWidget):
         ret, frame = self.cap.read()
         if ret:
             self.original_frame = frame
+            self.original_image = self.original_frame
             self.ref_frame = self.original_frame
             self.current_frame = self.original_frame
+            
+        self.filter_selector.setCurrentText("Sem Filtro")
 
     def toggle_play_pause(self):
         if not self.cap or not self.cap.isOpened():
@@ -198,8 +229,10 @@ class MainWindow(QWidget):
 
     def update_display(self):
         if self.current_frame is None:
+            self.roi_button.setEnabled(False)
             return
 
+        self.roi_button.setEnabled(True)
         # Dimensões do QLabel
         label_width = self.video_label.width()
         label_height = self.video_label.height()
@@ -235,6 +268,7 @@ class MainWindow(QWidget):
             QImage.Format_RGB888,
         )
 
+        self.update_ref_frame()
         # Centraliza a imagem no QLabel
         pixmap = QPixmap.fromImage(q_img)
         self.video_label.setPixmap(pixmap)
@@ -247,13 +281,186 @@ class MainWindow(QWidget):
         ret, frame = self.cap.read()
         if ret:
             self.original_frame = frame
-            self.ref_frame = self.current_frame if self.isCascata else self.original_frame
+            self.original_image = frame
+            self.update_ref_frame()
             self.select_filter()
             # self.update_display()
         else:
             self.timer.stop()
             self.is_playing = False
             self.play_button.setText("Play")
+            
+    def map_to_image_coordinates(self, pos):
+        if self.current_frame is None:
+            return None
+
+        # Posição absoluta do QLabel
+        label_global_pos = self.video_label.mapToGlobal(self.video_label.pos())
+        window_global_pos = self.mapToGlobal(self.pos())
+        # x_offset_label = label_global_pos.x() - window_global_pos.x()
+        y_offset_label = label_global_pos.y() - window_global_pos.y()
+
+        # Corrige as coordenadas do evento de mouse para serem relativas ao QLabel
+        x_relative = pos.x() - 10
+        y_relative = pos.y() - y_offset_label
+
+        # Dimensões do QLabel
+        label_width = self.video_label.width()
+        label_height = self.video_label.height()
+
+        # Dimensões da imagem atual
+        frame_height, frame_width = self.current_frame.shape[:2]
+
+        # Calcula o aspecto da imagem e do QLabel
+        frame_aspect_ratio = frame_width / frame_height
+        label_aspect_ratio = label_width / label_height
+
+        # Calcula as margens para centralizar a imagem no QLabel
+        if label_aspect_ratio > frame_aspect_ratio:
+            # Ajuste pela altura do QLabel
+            new_height = label_height
+            new_width = int(new_height * frame_aspect_ratio)
+            x_offset = (label_width - new_width) // 2
+            y_offset = 0
+        else:
+            # Ajuste pela largura do QLabel
+            new_width = label_width
+            new_height = int(new_width / frame_aspect_ratio)
+            x_offset = 0
+            y_offset = (label_height - new_height) // 2
+
+        # Normaliza as coordenadas do QLabel para a imagem
+        x = (x_relative - x_offset) * frame_width / new_width
+        y = (y_relative - y_offset) * frame_height / new_height
+
+        # Retorna apenas se as coordenadas estiverem dentro dos limites da imagem
+        if 0 <= x < frame_width and 0 <= y < frame_height:
+            return int(x), int(y)
+        return None
+            
+    def select_roi(self):
+        if self.current_frame is not None:
+            self.is_selecting_roi = True
+            self.roi_start = None
+            self.roi_end = None
+            self.video_label.setCursor(Qt.CrossCursor)  # Altere o cursor para indicar a seleção
+            
+    def update_display_with_frame(self, frame):
+        
+        if frame is None:
+            return
+
+        # Dimensões do QLabel
+        label_width = self.video_label.width()
+        label_height = self.video_label.height()
+
+        # Dimensões do frame original
+        frame_height, frame_width = frame.shape[:2]
+
+        # Calcula a proporção mantendo o aspect ratio
+        frame_aspect_ratio = frame_width / frame_height
+        label_aspect_ratio = label_width / label_height
+
+        if label_aspect_ratio > frame_aspect_ratio:
+            # Ajustar para caber na altura do QLabel
+            new_height = label_height
+            new_width = int(new_height * frame_aspect_ratio)
+        else:
+            # Ajustar para caber na largura do QLabel
+            new_width = label_width
+            new_height = int(new_width / frame_aspect_ratio)
+
+        # Redimensiona o frame mantendo a proporção
+        resized_frame = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+
+        # Converte para RGB (OpenCV usa BGR por padrão)
+        resized_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
+
+        # Cria o QImage de forma robusta
+        q_img = QImage(
+            resized_frame.data,
+            resized_frame.shape[1],
+            resized_frame.shape[0],
+            resized_frame.shape[1] * 3,  # Alinhamento correto para RGB
+            QImage.Format_RGB888,
+        )
+
+        # Centraliza a imagem no QLabel
+        pixmap = QPixmap.fromImage(q_img)
+        self.video_label.setPixmap(pixmap)
+        self.video_label.setAlignment(Qt.AlignCenter)
+
+
+    def update_roi_overlay(self):
+        if self.roi_start and self.roi_end and self.ref_frame is not None:
+            # Copia o frame atual para sobreposição
+            frame_copy = self.ref_frame.copy()
+
+            # Extrai coordenadas
+            x1, y1 = self.roi_start
+            x2, y2 = self.roi_end
+
+            # Desenha o retângulo de seleção
+            cv2.rectangle(
+                frame_copy,
+                (min(x1, x2), min(y1, y2)),
+                (max(x1, x2), max(y1, y2)),
+                (0, 255, 0),
+                2
+            )
+
+            # Atualiza a exibição com o frame
+            self.update_display_with_frame(frame_copy)
+
+    def crop_roi(self):
+        if self.roi_rect and self.current_frame is not None:
+            # Coordenadas na escala do frame
+            x, y, w, h = (
+                self.roi_rect.left(),
+                self.roi_rect.top(),
+                self.roi_rect.width(),
+                self.roi_rect.height(),
+            )
+            x1, y1 = int(x), int(y)
+            x2, y2 = x1 + int(w), y1 + int(h)
+
+            self.current_frame = self.current_frame[y1:y2, x1:x2]
+
+            # Atualiza o frame exibido
+            self.update_display()
+            
+    def mousePressEvent(self, event):
+        if self.is_selecting_roi and event.button() == Qt.LeftButton:
+            mapped_coords = self.map_to_image_coordinates(event.pos())
+            if mapped_coords:
+                self.roi_start = mapped_coords
+
+    def mouseMoveEvent(self, event):
+        if self.is_selecting_roi and self.roi_start:
+            # Atualiza o ponto final e desenha o retângulo de ROI
+            mapped_coords = self.map_to_image_coordinates(event.pos())
+            if mapped_coords:
+                self.roi_end = mapped_coords
+                self.update_roi_overlay()
+
+    def mouseReleaseEvent(self, event):
+        if self.is_selecting_roi and event.button() == Qt.LeftButton:
+            mapped_coords = self.map_to_image_coordinates(event.pos())
+            if mapped_coords:
+                self.roi_end = mapped_coords
+                self.is_selecting_roi = False
+
+                # Define o retângulo de ROI
+                x1, y1 = self.roi_start
+                x2, y2 = self.roi_end
+                self.roi_rect = QRect(
+                    min(x1, x2),
+                    min(y1, y2),
+                    abs(x2 - x1),
+                    abs(y2 - y1),
+                )
+                self.video_label.setCursor(Qt.ArrowCursor)  # Restaura o cursor padrão
+                self.crop_roi()
 
     def closeEvent(self, event):
         if self.cap is not None and self.cap.isOpened():
