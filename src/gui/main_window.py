@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import QTimer, Qt
-
+from ..utils import delete_files_from_folder
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -58,7 +58,14 @@ class MainWindow(QWidget):
         self.button_fastMode.clicked.connect(self.fast_mode_video)
         self.button_fastMode.setEnabled(False)
 
+        # Botão de Reverso
+        self.reverse_button = QPushButton("Reverso")
+        controls_layout.addWidget(self.reverse_button)
+        self.reverse_button.clicked.connect(self.toggle_reverse)
+        self.reverse_button.setEnabled(False)
+        self.is_reversing = False
 
+    
 
         # FIM => BOTÕES DE VÍDEO
         
@@ -88,6 +95,7 @@ class MainWindow(QWidget):
 
         self.setAcceptDrops(True)
         self.playback_speed = 30        
+        
 
 
     def open_file_dialog(self):
@@ -135,8 +143,30 @@ class MainWindow(QWidget):
             self.cap.release()  # Libera o vídeo anterior, se houver
         
         self.cap = cv2.VideoCapture(self.video_path)
+
+        # delete os frames do vídeo anterior caso exista
+        delete_files_from_folder("./src/frames")
+
+        # cria uma lista de frames para auxiliar no reverso
+        check, vid = self.cap.read()
+        self.counter = 0
+        check = True
+        self.frame_list = []
+        self.frame_list_reversed = []
+
+        while(check == True):
+          cv2.imwrite("./src/frames/frame%d.jpg" %self.counter, vid)
+          check, vid =  self.cap.read()
+          self.frame_list.append(vid)
+          self.counter += 1
+        
+        self.frame_list.append(vid)
+        self.frame_list_reversed = self.frame_list[::-1]
+ 
         if not self.cap.isOpened():
             print("Erro: Não foi possível abrir o vídeo.")
+        else:
+            self.reverse_button.setEnabled(True) 
 
     def toggle_play_pause(self):
         if not self.cap or not self.cap.isOpened():
@@ -175,6 +205,19 @@ class MainWindow(QWidget):
             print(f"Velocidade aumentada: {self.playback_speed}ms por frame.")
         else:
             print("Velocidade máxima atingida.")
+    
+    def toggle_reverse(self):
+        if not self.cap or not self.cap.isOpened():
+            return
+        self.is_reversing = not self.is_reversing
+        if self.is_reversing:
+            self.timer.setInterval(self.playback_speed) 
+            self.reverse_button.setText("Reverso ON")
+            print("Reprodução reversa ativada.")
+        else:
+            self.timer.setInterval(self.playback_speed) 
+            self.reverse_button.setText("Reverso OFF")
+            print("Reprodução reversa desativada.")
 
     def update_display(self):
         if self.current_frame is None:
@@ -204,7 +247,20 @@ class MainWindow(QWidget):
         if self.cap is None or not self.cap.isOpened():
             return
 
-        ret, frame = self.cap.read()
+        if self.is_reversing:
+            frame_pos = int(self.cap.get(cv2.CAP_PROP_POS_FRAMES)) - 2
+
+            # Verifica pra add loop no final do vídeo
+            if frame_pos < 0:  
+                frame_count = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_count - 1)
+                frame_pos = frame_count - 1
+                print("Fim do vídeo reverso. Reiniciando vídeo (!)")
+
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_pos)
+            ret, frame = self.cap.retrieve() #Se utilizar cap.read() dá problema pois vai pro frame seguinte, por isso tive que trocar para o retrieve.
+        else:
+            ret, frame = self.cap.read()
         if ret:
             self.current_frame = frame
             self.update_display()
