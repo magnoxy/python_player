@@ -41,18 +41,18 @@ class MainWindow(QWidget):
         controls_layout = QHBoxLayout()
 
         # Botão Play/Pause
-        self.play_button = QPushButton("Play")
+        self.play_button = QPushButton("▶️")
         controls_layout.addWidget(self.play_button)
         self.play_button.clicked.connect(self.toggle_play_pause)
         self.play_button.setEnabled(False)
 
         # Botão Aumentar Zoom
-        self.zoom_in_button = QPushButton("Aumentar Zoom")
+        self.zoom_in_button = QPushButton("+ 🔍")
         controls_layout.addWidget(self.zoom_in_button)
         self.zoom_in_button.clicked.connect(self.zoom_in)
 
         # Botão Diminuir Zoom
-        self.zoom_out_button = QPushButton("Diminuir Zoom")
+        self.zoom_out_button = QPushButton("- 🔍")
         controls_layout.addWidget(self.zoom_out_button)
         self.zoom_out_button.clicked.connect(self.zoom_out)
         
@@ -64,13 +64,13 @@ class MainWindow(QWidget):
 
         # INÍCIO => BOTÕES DE VÍDEO
         # Botão de Diminuir a Velocidade de reprodução do vídeo.
-        self.button_slowMode = QPushButton("- Velocidade")
+        self.button_slowMode = QPushButton("- ⏬")
         controls_layout.addWidget(self.button_slowMode)
         self.button_slowMode.clicked.connect(self.slow_mode_video)
         self.button_slowMode.setEnabled(False)  # Desabilitado até que um vídeo seja selecionado
 
         # Botão de Aumentar a Velocidade de reprodução do vídeo.
-        self.button_fastMode = QPushButton("+ Velocidade")
+        self.button_fastMode = QPushButton("+ ⏩")
         controls_layout.addWidget(self.button_fastMode)
         self.button_fastMode.clicked.connect(self.fast_mode_video)
         self.button_fastMode.setEnabled(False)
@@ -81,6 +81,11 @@ class MainWindow(QWidget):
         #self.reverse_button.clicked.connect(self.toggle_reverse)
         #self.reverse_button.setEnabled(False)
         #self.is_reversing = False
+
+        self.button_cutMode = QPushButton("🔪 OFF")
+        controls_layout.addWidget(self.button_cutMode)
+        self.button_cutMode.clicked.connect(self.toggle_cut)
+        self.button_cutMode.setEnabled(False)
 
         # FIM => BOTÕES DE VÍDEO
 
@@ -131,6 +136,11 @@ class MainWindow(QWidget):
         self.setAcceptDrops(True)
         self.playback_speed = 30    
 
+        #variaveís para controle de dos cortes de vídeo
+        self.frames_cut = []
+        self.cutting_is_on = False
+        self.output_folder = "./src/frames"
+
     def open_file_dialog(self):
         mode = self.mode_selector.currentText()
         if mode == "Imagem":
@@ -141,6 +151,7 @@ class MainWindow(QWidget):
                 self.play_button.setEnabled(False)  
                 self.button_fastMode.setEnabled(False)
                 self.button_slowMode.setEnabled(False)
+                self.button_cutMode.setEnabled(False)
         elif mode == "Vídeo":
             file_path, _ = QFileDialog.getOpenFileName(self, "Selecione um Vídeo", "", "Vídeos (*.mp4 *.avi *.mkv *.mov)")
             if file_path:
@@ -149,6 +160,7 @@ class MainWindow(QWidget):
                 self.play_button.setEnabled(True)
                 self.button_fastMode.setEnabled(True)
                 self.button_slowMode.setEnabled(True)
+                self.button_cutMode.setEnabled(True)
                 self.load_video()
         elif mode == "Webcam":
             self.start_cam()
@@ -248,10 +260,10 @@ class MainWindow(QWidget):
         self.is_playing = not self.is_playing
         if self.is_playing:
             self.timer.start(30)  # Aproximadamente 30 FPS
-            self.play_button.setText("Pause")
+            self.play_button.setText("⏸︎")
         else:
             self.timer.stop()
-            self.play_button.setText("Play")
+            self.play_button.setText("▶️")
 
     def zoom_in(self):
         if self.zoom_factor < self.max_zoom:
@@ -275,7 +287,14 @@ class MainWindow(QWidget):
             print(f"Velocidade aumentada: {self.playback_speed}ms por frame.")
         else:
             print("Velocidade máxima atingida.")
-    
+
+    def toggle_cut(self):
+        if(self.cutting_is_on):
+            self.button_cutMode.setText("🔪 OFF")
+            self.cutting_is_on = False
+        else:
+            self.cutting_is_on = True
+            self.button_cutMode.setText("🔪 ON")
 
 
     def update_display(self):
