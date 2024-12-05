@@ -72,6 +72,12 @@ class MainWindow(QWidget):
         self.filter_selector.addItems(["Sem Filtro", "Grayscale", "Binário", "Blur", "Sharpen", "Sobel", "Laplacian", "Canny", "Emboss"])
         controls_layout.addWidget(self.filter_selector)
         self.filter_selector.currentTextChanged.connect(self.select_filter)
+        
+        # Botão para recortar imagem
+        self.cut_image = QPushButton("Recortar")
+        controls_layout.addWidget(self.cut_image)
+        self.cut_image.clicked.connect(self.clip_image)
+        self.cut_image.setEnabled(False)
 
         self.layout.addLayout(controls_layout)
 
@@ -424,10 +430,24 @@ class MainWindow(QWidget):
             x1, y1 = int(x), int(y)
             x2, y2 = x1 + int(w), y1 + int(h)
 
-            self.current_frame = self.current_frame[y1:y2, x1:x2]
+            self.roi_frame = self.current_frame[y1:y2, x1:x2]
+            self.current_frame = self.roi_frame
 
             # Atualiza o frame exibido
+            self.cut_image.setEnabled(True)
             self.update_display()
+            
+    def clip_image(self):
+        if self.roi_frame is None:
+            print("nenhum frame selecionado")
+            return
+        
+        self.current_frame = self.roi_frame
+        self.original_frame = self.current_frame
+        self.update_ref_frame()
+        self.roi_frame = None;
+        self.cut_image.setEnabled(False)
+        self.update_display()
             
     def mousePressEvent(self, event):
         if self.is_selecting_roi and event.button() == Qt.LeftButton:
