@@ -17,7 +17,7 @@ class MainWindow(QWidget):
 
         # Layout principal
         self.layout = QVBoxLayout()
-        self.setFixedSize(800, 600)
+        self.setFixedSize(1920, 1080)
         self.setLayout(self.layout)
 
         # Dropdown para selecionar Imagem ou Vídeo
@@ -38,16 +38,30 @@ class MainWindow(QWidget):
         # Botões de controle
         controls_layout = QHBoxLayout()
 
+        # INÍCIO => BOTÕES DE VÍDEO
+
         # Botão Play/Pause
         self.play_button = QPushButton("Play")
         controls_layout.addWidget(self.play_button)
         self.play_button.clicked.connect(self.toggle_play_pause)
         self.play_button.setEnabled(False)  # Desabilitado até que um vídeo seja selecionado
     
-        self.video_slowMode = QPushButton("- Velocidade")
-        controls_layout.addWidget(self.video_slowMode)
-        self.video_slowMode.clicked.connect(self.slow_mode_video)
+        # Botão de Diminuir a Velocidade de reprodução do vídeo.
+        self.button_slowMode = QPushButton("- Velocidade")
+        controls_layout.addWidget(self.button_slowMode)
+        self.button_slowMode.clicked.connect(self.slow_mode_video)
+        self.button_slowMode.setEnabled(False)  # Desabilitado até que um vídeo seja selecionado
 
+        # Botão de Aumentar a Velocidade de reprodução do vídeo.
+        self.button_fastMode = QPushButton("+ Velocidade")
+        controls_layout.addWidget(self.button_fastMode)
+        self.button_fastMode.clicked.connect(self.fast_mode_video)
+        self.button_fastMode.setEnabled(False)
+
+
+
+        # FIM => BOTÕES DE VÍDEO
+        
         # Botão Aumentar Zoom
         self.zoom_in_button = QPushButton("Aumentar Zoom")
         controls_layout.addWidget(self.zoom_in_button)
@@ -57,6 +71,8 @@ class MainWindow(QWidget):
         self.zoom_out_button = QPushButton("Diminuir Zoom")
         controls_layout.addWidget(self.zoom_out_button)
         self.zoom_out_button.clicked.connect(self.zoom_out)
+
+        #Trocar 
 
         self.layout.addLayout(controls_layout)
         self.timer = QTimer()
@@ -90,6 +106,8 @@ class MainWindow(QWidget):
             if file_path:
                 self.video_path = file_path
                 self.play_button.setEnabled(True)  # Habilita o botão Play
+                self.button_fastMode.setEnabled(True)
+                self.button_slowMode.setEnabled(True)
                 self.load_video()
         elif mode == "Webcam":
             self.start_cam()
@@ -150,6 +168,14 @@ class MainWindow(QWidget):
         self.timer.setInterval(self.playback_speed)
         print(f"Velocidade reduzida: {self.playback_speed}ms por frame.")
 
+    def fast_mode_video(self):
+        if(self.playback_speed > 10):
+            self.playback_speed -= 10
+            self.timer.setInterval(self.playback_speed)
+            print(f"Velocidade aumentada: {self.playback_speed}ms por frame.")
+        else:
+            print("Velocidade máxima atingida.")
+
     def update_display(self):
         if self.current_frame is None:
             return
@@ -183,9 +209,10 @@ class MainWindow(QWidget):
             self.current_frame = frame
             self.update_display()
         else:
-            self.timer.stop()  # Para o timer se o vídeo terminar
-            self.is_playing = False
             self.play_button.setText("Play")
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            self.is_playing = True
+            print("Reiniciando o vídeo para o início.")
             print("Fim do vídeo.")
 
     def closeEvent(self, event):
