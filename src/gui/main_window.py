@@ -56,6 +56,28 @@ class MainWindow(QWidget):
         controls_layout.addWidget(self.zoom_out_button)
         self.zoom_out_button.clicked.connect(self.zoom_out)
 
+        # INÍCIO => BOTÕES DE VÍDEO
+        # Botão de Diminuir a Velocidade de reprodução do vídeo.
+        self.button_slowMode = QPushButton("- Velocidade")
+        controls_layout.addWidget(self.button_slowMode)
+        self.button_slowMode.clicked.connect(self.slow_mode_video)
+        self.button_slowMode.setEnabled(False)  # Desabilitado até que um vídeo seja selecionado
+
+        # Botão de Aumentar a Velocidade de reprodução do vídeo.
+        self.button_fastMode = QPushButton("+ Velocidade")
+        controls_layout.addWidget(self.button_fastMode)
+        self.button_fastMode.clicked.connect(self.fast_mode_video)
+        self.button_fastMode.setEnabled(False)
+
+        # Botão de Reverso
+        #self.reverse_button = QPushButton("Reverso")
+        #controls_layout.addWidget(self.reverse_button)
+        #self.reverse_button.clicked.connect(self.toggle_reverse)
+        #self.reverse_button.setEnabled(False)
+        #self.is_reversing = False
+
+        # FIM => BOTÕES DE VÍDEO
+
         # Botão para alternar modo cascata
         self.checkbox_is_cascata = QPushButton("Independente")
         controls_layout.addWidget(self.checkbox_is_cascata)
@@ -87,6 +109,7 @@ class MainWindow(QWidget):
 
         # Suporte a drag and drop
         self.setAcceptDrops(True)
+        self.playback_speed = 30    
 
     def open_file_dialog(self):
         mode = self.mode_selector.currentText()
@@ -94,11 +117,18 @@ class MainWindow(QWidget):
             file_path, _ = QFileDialog.getOpenFileName(self, "Selecione uma Imagem", "", "Imagens (*.png *.jpg *.jpeg *.bmp)")
             if file_path:
                 self.display_image(file_path)
+                #desabilita botões de vídeo
+                self.play_button.setEnabled(False)  
+                self.button_fastMode.setEnabled(False)
+                self.button_slowMode.setEnabled(False)
         elif mode == "Vídeo":
             file_path, _ = QFileDialog.getOpenFileName(self, "Selecione um Vídeo", "", "Vídeos (*.mp4 *.avi *.mkv *.mov)")
             if file_path:
                 self.video_path = file_path
+                #habilita botões de vídeo
                 self.play_button.setEnabled(True)
+                self.button_fastMode.setEnabled(True)
+                self.button_slowMode.setEnabled(True)
                 self.load_video()
         elif mode == "Webcam":
             self.start_cam()
@@ -195,6 +225,21 @@ class MainWindow(QWidget):
         if self.zoom_factor > self.min_zoom:
             self.zoom_factor -= 0.1
             self.update_display()
+
+    def slow_mode_video(self):
+        self.playback_speed += 10  # Aumenta o intervalo em 10ms
+        self.timer.setInterval(self.playback_speed)
+        print(f"Velocidade reduzida: {self.playback_speed}ms por frame.")
+    
+    def fast_mode_video(self):
+        if(self.playback_speed > 10):
+            self.playback_speed -= 10
+            self.timer.setInterval(self.playback_speed)
+            print(f"Velocidade aumentada: {self.playback_speed}ms por frame.")
+        else:
+            print("Velocidade máxima atingida.")
+    
+
 
     def update_display(self):
         if self.current_frame is None:
