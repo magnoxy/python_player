@@ -17,10 +17,9 @@ class MainWindow(QWidget):
         self.setWindowTitle("Teti Player")
         self.setGeometry(100, 100, 1920, 1080)
 
-
         # Layout principal
         self.layout = QVBoxLayout()
-        self.setFixedSize(1280, 800)
+        self.setMinimumSize(1280, 800)
         self.setLayout(self.layout)
 
         # Dropdown para selecionar Imagem ou Vídeo
@@ -148,7 +147,7 @@ class MainWindow(QWidget):
         self.output_folder = "./src/frames"
 
         #variaveis para controle de Interpolation
-        self.interpolation = cv2.INTER_MAX
+        self.interpolation = cv2.INTER_LINEAR
 
     def open_file_dialog(self):
         mode = self.mode_selector.currentText()
@@ -456,7 +455,7 @@ class MainWindow(QWidget):
             new_height = int(new_width / frame_aspect_ratio)
 
         # Redimensiona o frame mantendo a proporção
-        resized_frame = cv2.resize(frame, (new_width, new_height), interpolation=self.INTERPOLATION)
+        resized_frame = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
 
         # Converte para RGB (OpenCV usa BGR por padrão)
         resized_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
@@ -588,14 +587,39 @@ class MainWindow(QWidget):
         self.update_display()
 
     def saveFile (self, event): 
-        if self.current_frame is not None:
-            file_path, _ = QFileDialog.getSaveFileName(self, "Salvar Arquivo", "", "Imagens (*.png *.jpg *.jpeg *.bmp)")
-            if file_path:
-                if(file_path.endswith(('.png', '.jpg', '.jpeg', '.bmp'))):
-                    cv2.imwrite(file_path, self.current_frame)
-                else: 
-                    file_path += ".png"
-                    cv2.imwrite(file_path, self.current_frame)
-                print("Arquivo salvo com sucesso")
-        else:
-            print("Nenhum frame para salvar")
+      mode = self.mode_selector.currentText()
+      if self.current_frame is not None:
+        if(mode == "Imagem"):
+          file_path, _ = QFileDialog.getSaveFileName(self, "Salvar Arquivo", "", "Imagens (*.png *.jpg *.jpeg *.bmp)")
+          if file_path:
+            if(file_path.endswith(('.png', '.jpg', '.jpeg', '.bmp'))):
+                cv2.imwrite(file_path, self.current_frame)
+            else: 
+                file_path += ".png"
+                cv2.imwrite(file_path, self.current_frame)
+            print("Arquivo salvo com sucesso")
+        if(mode == "Vídeo"):
+          file_path, _ = QFileDialog.getSaveFileName(self, "Salvar Arquivo", "", "Vídeos (*.mp4 *.avi *.mkv *.mov)")
+          if file_path:
+            if(file_path.endswith(('.mp4', '.avi', '.mkv', '.mov'))):
+              fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+              cap = self.cap
+              frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+              frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+              out = cv2.VideoWriter(file_path, fourcc, 30.0, (frame_width, frame_height))
+              while cap.isOpened():
+                ret, frame = cap.read()   
+                out.write(frame)
+                if not ret:
+                  break
+              out.release()
+              QMessageBox().information(self, "Sucesso", "Arquivo salvo com sucesso")
+            else: 
+              file_path += ".mp4"
+              fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+              out = cv2.VideoWriter(file_path, fourcc, 30.0, (self.current_frame.shape[1], self.current_frame.shape[0]))
+              out.write(self.current_frame)
+              out.release()
+            QMessageBox().information(self, "Sucesso", "Arquivo salvo com sucesso")
+      else:
+          print("Nenhum frame para salvar")
