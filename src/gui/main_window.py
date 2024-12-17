@@ -1,7 +1,7 @@
 import sys
 import cv2
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QComboBox, QFileDialog, QHBoxLayout
+    QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QComboBox, QFileDialog, QHBoxLayout, QMessageBox
 )
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import QTimer, Qt, QRect
@@ -15,7 +15,8 @@ class MainWindow(QWidget):
 
         # Configurações da janela
         self.setWindowTitle("Teti Player")
-        self.setGeometry(100, 100, 1280, 800)
+        self.setGeometry(100, 100, 1920, 1080)
+
 
         # Layout principal
         self.layout = QVBoxLayout()
@@ -106,6 +107,10 @@ class MainWindow(QWidget):
         self.cut_image.clicked.connect(self.clip_image)
         self.cut_image.setEnabled(False)
 
+        self.save_imageOrVideo = QPushButton("Save")
+        controls_layout.addWidget(self.save_imageOrVideo)
+        self.save_imageOrVideo.clicked.connect(self.saveFile)
+
         self.layout.addLayout(controls_layout)
 
         # Timer para atualização de frames
@@ -141,6 +146,9 @@ class MainWindow(QWidget):
         self.frames_cut = []
         self.cutting_is_on = False
         self.output_folder = "./src/frames"
+
+        #variaveis para controle de Interpolation
+        self.interpolation = cv2.INTER_MAX
 
     def open_file_dialog(self):
         mode = self.mode_selector.currentText()
@@ -448,7 +456,7 @@ class MainWindow(QWidget):
             new_height = int(new_width / frame_aspect_ratio)
 
         # Redimensiona o frame mantendo a proporção
-        resized_frame = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+        resized_frame = cv2.resize(frame, (new_width, new_height), interpolation=self.INTERPOLATION)
 
         # Converte para RGB (OpenCV usa BGR por padrão)
         resized_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
@@ -578,3 +586,16 @@ class MainWindow(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.update_display()
+
+    def saveFile (self, event): 
+        if self.current_frame is not None:
+            file_path, _ = QFileDialog.getSaveFileName(self, "Salvar Arquivo", "", "Imagens (*.png *.jpg *.jpeg *.bmp)")
+            if file_path:
+                if(file_path.endswith(('.png', '.jpg', '.jpeg', '.bmp'))):
+                    cv2.imwrite(file_path, self.current_frame)
+                else: 
+                    file_path += ".png"
+                    cv2.imwrite(file_path, self.current_frame)
+                print("Arquivo salvo com sucesso")
+        else:
+            print("Nenhum frame para salvar")
