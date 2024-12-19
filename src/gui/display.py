@@ -30,8 +30,8 @@ class VideoDisplay(QWidget):
         self.layout.addLayout(self.display_layout)
 
         # Lista vertical à direita
-        filters = FiltersList(parent)
-        self.right_list = filters
+        self.filters = FiltersList(parent)
+        self.right_list = self.filters
         self.layout.addWidget(self.right_list)
 
     def update_display(self):
@@ -51,6 +51,7 @@ class VideoDisplay(QWidget):
         label_height = self.video_label.height()
 
         # Seleciona o primeiro frame da lista de frames
+        self.parent.original_frame = self.parent.frames_list[0]
         self.parent.current_frame = self.parent.frames_list[0]
 
         # Dimensões do frame original
@@ -68,7 +69,23 @@ class VideoDisplay(QWidget):
             # Ajustar para caber na largura do QLabel
             new_width = label_width
             new_height = int(new_width / frame_aspect_ratio)
+            
+        modifications = self.parent.history.get_history()
+        virtual_modification = self.parent.history.get_virtual_modification()
+        
+        acumulative_frame = self.parent.original_frame
+        
+        if len(modifications) > 0:
+            for modific in modifications:
+                if modific["type"] == "filtro":
+                    acumulative_frame = self.filters.apply_filter(acumulative_frame, modific["description"])
+                    
+        if virtual_modification is not None:
+            if virtual_modification is not None:
+                if virtual_modification["type"] == "filtro":
+                    acumulative_frame = self.filters.apply_filter(acumulative_frame, virtual_modification["description"])
 
+        self.parent.current_frame = acumulative_frame
         # Redimensiona o frame mantendo a proporção
         resized_frame = cv2.resize(self.parent.current_frame, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
 

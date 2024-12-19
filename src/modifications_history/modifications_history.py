@@ -40,12 +40,13 @@ class ModificationHistory:
             "params": params or {}
         }
 
-        print(self.history)
         self.add_virtual_modification(entry)
         
         if self.parent.cascade:
             self.history.append(self.virtual_modification)
-
+            # Atualiza a exibição sempre que a história de modificações é alterada
+        
+        self.parent.update_display()
 
     def get_virtual_modification(self):
         """Retorna a última modificação"""
