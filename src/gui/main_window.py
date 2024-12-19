@@ -9,7 +9,7 @@ from PyQt5.QtCore import QTimer, Qt, QRect
 from ..filters.grayscale import converter_cinza, conversao_binaria
 from ..filters.convolution import *
 from .controls import Controls
-from .modeSelector import ModeSelector
+from .mode_selector import ModeSelector
 from .display import VideoDisplay
 class MainWindow(QWidget):
     def __init__(self):
@@ -246,68 +246,68 @@ class MainWindow(QWidget):
             print(len(self.frames_cut))
 
 
-    def update_display(self):
-        if self.current_frame is None:
-            # self.roi_button.setEnabled(False)
-            return
+        def update_display(self):
+            if self.current_frame is None:
+                # self.roi_button.setEnabled(False)
+                return
 
-        # self.roi_button.setEnabled(True)
-        # Dimensões do QLabel
-        label_width = self.video_label.width()
-        label_height = self.video_label.height()
+            # self.roi_button.setEnabled(True)
+            # Dimensões do QLabel
+            label_width = self.video_label.width()
+            label_height = self.video_label.height()
 
-        # Dimensões do frame original
-        frame_height, frame_width = self.current_frame.shape[:2]
+            # Dimensões do frame original
+            frame_height, frame_width = self.current_frame.shape[:2]
 
-        # Calcula a proporção mantendo o aspect ratio
-        frame_aspect_ratio = frame_width / frame_height
-        label_aspect_ratio = label_width / label_height
+            # Calcula a proporção mantendo o aspect ratio
+            frame_aspect_ratio = frame_width / frame_height
+            label_aspect_ratio = label_width / label_height
 
-        if label_aspect_ratio > frame_aspect_ratio:
-            # Ajustar para caber na altura do QLabel
-            new_height = label_height
-            new_width = int(new_height * frame_aspect_ratio)
-        else:
-            # Ajustar para caber na largura do QLabel
-            new_width = label_width
-            new_height = int(new_width / frame_aspect_ratio)
+            if label_aspect_ratio > frame_aspect_ratio:
+                # Ajustar para caber na altura do QLabel
+                new_height = label_height
+                new_width = int(new_height * frame_aspect_ratio)
+            else:
+                # Ajustar para caber na largura do QLabel
+                new_width = label_width
+                new_height = int(new_width / frame_aspect_ratio)
 
-        # Redimensiona o frame mantendo a proporção
-        resized_frame = cv2.resize(self.current_frame, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+            # Redimensiona o frame mantendo a proporção
+            resized_frame = cv2.resize(self.current_frame, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
 
-        # Converte para RGB (OpenCV usa BGR por padrão)
-        resized_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
+            # Converte para RGB (OpenCV usa BGR por padrão)
+            resized_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
 
-        # Cria o QImage de forma robusta
-        q_img = QImage(
-            resized_frame.data,
-            resized_frame.shape[1],
-            resized_frame.shape[0],
-            resized_frame.shape[1] * 3,  # Alinhamento correto para RGB
-            QImage.Format_RGB888,
-        )
+            # Cria o QImage de forma robusta
+            q_img = QImage(
+                resized_frame.data,
+                resized_frame.shape[1],
+                resized_frame.shape[0],
+                resized_frame.shape[1] * 3,  # Alinhamento correto para RGB
+                QImage.Format_RGB888,
+            )
 
-        self.update_ref_frame()
-        # Centraliza a imagem no QLabel
-        pixmap = QPixmap.fromImage(q_img)
-        self.video_label.setPixmap(pixmap)
-        self.video_label.setAlignment(Qt.AlignCenter)
-
-    def update_frame(self):
-        if self.cap is None or not self.cap.isOpened():
-            return
-
-        ret, frame = self.cap.read()
-        if ret:
-            self.original_frame = frame
-            self.original_image = frame
             self.update_ref_frame()
-            self.select_filter()
-            # self.update_display()
-        else:
-            self.timer.stop()
-            self.is_playing = False
-            self.play_button.setText("Play")
+            # Centraliza a imagem no QLabel
+            pixmap = QPixmap.fromImage(q_img)
+            self.video_label.setPixmap(pixmap)
+            self.video_label.setAlignment(Qt.AlignCenter)
+
+        def update_frame(self):
+            if self.cap is None or not self.cap.isOpened():
+                return
+
+            ret, frame = self.cap.read()
+            if ret:
+                self.original_frame = frame
+                self.original_image = frame
+                self.update_ref_frame()
+                self.select_filter()
+                # self.update_display()
+            else:
+                self.timer.stop()
+                self.is_playing = False
+                self.play_button.setText("Play")
             
     def map_to_image_coordinates(self, pos):
         if self.current_frame is None:

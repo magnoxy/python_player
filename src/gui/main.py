@@ -1,9 +1,10 @@
 from PyQt5.QtWidgets import QWidget, QMainWindow, QVBoxLayout, QHBoxLayout
 from PyQt5.QtCore import Qt
 
-from src.modificationsHistory.modificationsHistory import ModificationHistory
+from src.modifications_history.modifications_history import ModificationHistory
 from .mode_selector import ModeSelector
 from .cascade_checkbox import CascadeCheckbox
+from .display import VideoDisplay
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -33,10 +34,25 @@ class MainWindow(QMainWindow):
         header_layout.addStretch()  # Adiciona espaço expansível
         header_layout.addWidget(cascadeCheckBox)
         
-        # Adiciona o cabeçalho ao layout principal
+        # Display
+        display = VideoDisplay(self)
+        # Adiciona componentes ao layout principal
         layout.addLayout(header_layout)
+        layout.addWidget(display)
         
-        # Outras inicializações
-        self.history = ModificationHistory()
+        # Caminho do Arquivo
+        self.file_path = None;
+        
+        # Frames
+        self.frames_list = []
+        self.original_frame = None;
+        self.current_frame = None;
+        
+        # Histórico de Modificações
+        self.history = ModificationHistory(self)
         self.modification = None
+        
+        # Alterações em Cascata
         self.cascade = False
+        
+    
