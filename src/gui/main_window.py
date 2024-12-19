@@ -8,107 +8,42 @@ from PyQt5.QtCore import QTimer, Qt, QRect
 
 from ..filters.grayscale import converter_cinza, conversao_binaria
 from ..filters.convolution import *
-
+from .controls import Controls
+from .modeSelector import ModeSelector
+from .display import VideoDisplay
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__() 
 
         # Configurações da janela
-        self.setWindowTitle("Teti Player")
+        self.setWindowTitle("TETI Player")
         self.setGeometry(100, 100, 1920, 1080)
 
         # Layout principal
         self.layout = QVBoxLayout()
-        self.setMinimumSize(1280, 800)
+        self.setMinimumSize(1280, 720)
         self.setLayout(self.layout)
 
         # Dropdown para selecionar Imagem ou Vídeo
-        self.mode_selector = QComboBox()
-        self.mode_selector.addItems(["Imagem", "Vídeo", "Webcam"])
+        self.mode_selector = ModeSelector(self)
+        # self.mode_selector.addItems(["Imagem", "Vídeo", "Webcam"])
         self.layout.addWidget(self.mode_selector)
 
         # Botão para abrir arquivo
-        self.open_button = QPushButton("Abrir Arquivo")
-        self.layout.addWidget(self.open_button)
-        self.open_button.clicked.connect(self.open_file_dialog)
+        # self.open_button = QPushButton("Abrir Arquivo")
+        # self.layout.addWidget(self.open_button)
+        # self.open_button.clicked.connect(self.open_file_dialog)
 
         # Label para exibir frames de vídeo ou imagem
-        self.video_label = QLabel("Exibição")
-        self.video_label.setStyleSheet("border: 1px solid black;")
-        self.layout.addWidget(self.video_label)
+        self.video_display = VideoDisplay(self)
+        # self.video_label.setStyleSheet("border: 1px solid black;")
+        self.layout.addWidget(self.video_display)
 
         # Botões de controle
-        controls_layout = QHBoxLayout()
+        controls_layout = Controls(self)
 
-        # Botão Play/Pause
-        self.play_button = QPushButton("▶️")
-        controls_layout.addWidget(self.play_button)
-        self.play_button.clicked.connect(self.toggle_play_pause)
-        self.play_button.setEnabled(False)
-
-        # Botão Aumentar Zoom
-        self.zoom_in_button = QPushButton("+ 🔍")
-        controls_layout.addWidget(self.zoom_in_button)
-        self.zoom_in_button.clicked.connect(self.zoom_in)
-
-        # Botão Diminuir Zoom
-        self.zoom_out_button = QPushButton("- 🔍")
-        controls_layout.addWidget(self.zoom_out_button)
-        self.zoom_out_button.clicked.connect(self.zoom_out)
-        
-        # Botão para selecionar ROI
-        self.roi_button = QPushButton("Selecionar ROI")
-        controls_layout.addWidget(self.roi_button)
-        self.roi_button.clicked.connect(self.select_roi)
-        self.roi_button.setEnabled(False)
-
-        # INÍCIO => BOTÕES DE VÍDEO
-        # Botão de Diminuir a Velocidade de reprodução do vídeo.
-        self.button_slowMode = QPushButton("- ⏬")
-        controls_layout.addWidget(self.button_slowMode)
-        self.button_slowMode.clicked.connect(self.slow_mode_video)
-        self.button_slowMode.setEnabled(False)  # Desabilitado até que um vídeo seja selecionado
-
-        # Botão de Aumentar a Velocidade de reprodução do vídeo.
-        self.button_fastMode = QPushButton("+ ⏩")
-        controls_layout.addWidget(self.button_fastMode)
-        self.button_fastMode.clicked.connect(self.fast_mode_video)
-        self.button_fastMode.setEnabled(False)
-
-        # Botão de Reverso
-        #self.reverse_button = QPushButton("Reverso")
-        #controls_layout.addWidget(self.reverse_button)
-        #self.reverse_button.clicked.connect(self.toggle_reverse)
-        #self.reverse_button.setEnabled(False)
-        #self.is_reversing = False
-
-        self.button_cutMode = QPushButton("🔪 OFF")
-        controls_layout.addWidget(self.button_cutMode)
-        self.button_cutMode.clicked.connect(self.toggleCutButton)
-        self.button_cutMode.setEnabled(False)
 
         # FIM => BOTÕES DE VÍDEO
-
-        # Botão para alternar modo cascata
-        self.checkbox_is_cascata = QPushButton("Independente")
-        controls_layout.addWidget(self.checkbox_is_cascata)
-        self.checkbox_is_cascata.clicked.connect(self.toggle_cascata)
-
-        # Dropdown Filtros
-        self.filter_selector = QComboBox()
-        self.filter_selector.addItems(["Sem Filtro", "Grayscale", "Binário", "Blur", "Sharpen", "Sobel", "Laplacian", "Canny", "Emboss"])
-        controls_layout.addWidget(self.filter_selector)
-        self.filter_selector.currentTextChanged.connect(self.select_filter)
-        
-        # Botão para recortar imagem
-        self.cut_image = QPushButton("Recortar")
-        controls_layout.addWidget(self.cut_image)
-        self.cut_image.clicked.connect(self.clip_image)
-        self.cut_image.setEnabled(False)
-
-        self.save_imageOrVideo = QPushButton("Save")
-        controls_layout.addWidget(self.save_imageOrVideo)
-        self.save_imageOrVideo.clicked.connect(self.saveFile)
 
         self.layout.addLayout(controls_layout)
 
@@ -150,7 +85,7 @@ class MainWindow(QWidget):
         self.interpolation = cv2.INTER_LINEAR
 
     def open_file_dialog(self):
-        mode = self.mode_selector.currentText()
+        mode = self.mode_selector.mode_selector.currentText()
         if mode == "Imagem":
             file_path, _ = QFileDialog.getOpenFileName(self, "Selecione uma Imagem", "", "Imagens (*.png *.jpg *.jpeg *.bmp)")
             if file_path:
@@ -313,10 +248,10 @@ class MainWindow(QWidget):
 
     def update_display(self):
         if self.current_frame is None:
-            self.roi_button.setEnabled(False)
+            # self.roi_button.setEnabled(False)
             return
 
-        self.roi_button.setEnabled(True)
+        # self.roi_button.setEnabled(True)
         # Dimensões do QLabel
         label_width = self.video_label.width()
         label_height = self.video_label.height()
