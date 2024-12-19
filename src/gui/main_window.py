@@ -1,5 +1,7 @@
 import sys
 import cv2
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QComboBox, QFileDialog, QHBoxLayout, QMessageBox
 )
@@ -13,6 +15,7 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__() 
 
+        print("Iniciando o sistema")
         # Configurações da janela
         self.setWindowTitle("Teti Player")
         self.setGeometry(100, 100, 1920, 1080)
@@ -41,51 +44,59 @@ class MainWindow(QWidget):
         controls_layout = QHBoxLayout()
 
         # Botão Play/Pause
-        self.play_button = QPushButton("▶️")
+        self.play_button = QPushButton("⏯️")
         controls_layout.addWidget(self.play_button)
         self.play_button.clicked.connect(self.toggle_play_pause)
         self.play_button.setEnabled(False)
+        self.play_button.setToolTip('Reproduzir/Pausar o vídeo')
 
         # Botão Aumentar Zoom
-        self.zoom_in_button = QPushButton("+ 🔍")
+        self.zoom_in_button = QPushButton("➕ 🔍")
         controls_layout.addWidget(self.zoom_in_button)
         self.zoom_in_button.clicked.connect(self.zoom_in)
+        self.zoom_in_button.setToolTip('Aumentar o zoom')
 
         # Botão Diminuir Zoom
-        self.zoom_out_button = QPushButton("- 🔍")
+        self.zoom_out_button = QPushButton("➖ 🔍")
         controls_layout.addWidget(self.zoom_out_button)
         self.zoom_out_button.clicked.connect(self.zoom_out)
+        self.zoom_out_button.setToolTip('Dimiuir o zoom')
         
         # Botão para selecionar ROI
-        self.roi_button = QPushButton("Selecionar ROI")
+        self.roi_button = QPushButton("📏 ROI")
         controls_layout.addWidget(self.roi_button)
         self.roi_button.clicked.connect(self.select_roi)
         self.roi_button.setEnabled(False)
+        self.roi_button.setToolTip('Clique aqui para selecionar uma opção de corte')
 
         # INÍCIO => BOTÕES DE VÍDEO
         # Botão de Diminuir a Velocidade de reprodução do vídeo.
-        self.button_slowMode = QPushButton("- ⏬")
+        self.button_slowMode = QPushButton("➖ ⏬")
         controls_layout.addWidget(self.button_slowMode)
         self.button_slowMode.clicked.connect(self.slow_mode_video)
-        self.button_slowMode.setEnabled(False)  # Desabilitado até que um vídeo seja selecionado
+        self.button_slowMode.setEnabled(False)  # Desabilitado até que um vídeo seja selecionad
+        self.button_slowMode.setToolTip('Diminuir a velocidade de reprodução do vídeo')
 
         # Botão de Aumentar a Velocidade de reprodução do vídeo.
-        self.button_fastMode = QPushButton("+ ⏩")
+        self.button_fastMode = QPushButton("➕ ⏩")
         controls_layout.addWidget(self.button_fastMode)
         self.button_fastMode.clicked.connect(self.fast_mode_video)
         self.button_fastMode.setEnabled(False)
+        self.button_fastMode.setToolTip('Aumentar a velocidade de reprodução do vídeo')  
 
-        # Botão de Reverso
-        #self.reverse_button = QPushButton("Reverso")
-        #controls_layout.addWidget(self.reverse_button)
+        #Botão de Reverso
+        self.reverse_button = QPushButton("◀")
+        controls_layout.addWidget(self.reverse_button)
         #self.reverse_button.clicked.connect(self.toggle_reverse)
         #self.reverse_button.setEnabled(False)
         #self.is_reversing = False
+        self.reverse_button.setToolTip('Reproduzir o vídeo em reverso')
 
-        self.button_cutMode = QPushButton("🔪 OFF")
+        self.button_cutMode = QPushButton("🎬📎 OFF")
         controls_layout.addWidget(self.button_cutMode)
         self.button_cutMode.clicked.connect(self.toggleCutButton)
         self.button_cutMode.setEnabled(False)
+        self.button_cutMode.setToolTip('Ative para cortar o vídeo pressionando a tecla de espaço')  
 
         # FIM => BOTÕES DE VÍDEO
 
@@ -106,9 +117,11 @@ class MainWindow(QWidget):
         self.cut_image.clicked.connect(self.clip_image)
         self.cut_image.setEnabled(False)
 
-        self.save_imageOrVideo = QPushButton("Save")
+        self.save_imageOrVideo = QPushButton("💾")
         controls_layout.addWidget(self.save_imageOrVideo)
         self.save_imageOrVideo.clicked.connect(self.saveFile)
+        self.save_imageOrVideo.setEnabled(False)
+        self.save_imageOrVideo.setToolTip('Clique para salvar a imagem ou vídeo atual')  
 
         self.layout.addLayout(controls_layout)
 
@@ -130,7 +143,7 @@ class MainWindow(QWidget):
         self.max_zoom = 2.0
         self.min_zoom = 1.0
         
-         # Variáveis de controle de ROI
+        # Variáveis de controle de ROI
         self.is_selecting_roi = False
         self.roi_start = None
         self.roi_end = None
@@ -146,6 +159,12 @@ class MainWindow(QWidget):
         self.cutting_is_on = False
         self.output_folder = "./src/frames"
 
+
+        #variaveis para criar uma lista de frames ao carregar um vídeo
+        #tentativa de ser assíncrono em python (...que medo)
+        self.frames_list = []
+
+
         #variaveis para controle de Interpolation
         self.interpolation = cv2.INTER_LINEAR
 
@@ -160,6 +179,7 @@ class MainWindow(QWidget):
                 self.button_fastMode.setEnabled(False)
                 self.button_slowMode.setEnabled(False)
                 self.button_cutMode.setEnabled(False)
+                self.save_imageOrVideo.setEnabled(True)
         elif mode == "Vídeo":
             file_path, _ = QFileDialog.getOpenFileName(self, "Selecione um Vídeo", "", "Vídeos (*.mp4 *.avi *.mkv *.mov)")
             if file_path:
@@ -169,7 +189,9 @@ class MainWindow(QWidget):
                 self.button_fastMode.setEnabled(True)
                 self.button_slowMode.setEnabled(True)
                 self.button_cutMode.setEnabled(True)
+                self.save_imageOrVideo.setEnabled(True)
                 self.load_video()
+                self.load_frames_list()
         elif mode == "Webcam":
             self.start_cam()
 
@@ -258,6 +280,9 @@ class MainWindow(QWidget):
             self.original_image = self.original_frame
             self.ref_frame = self.original_frame
             self.current_frame = self.original_frame
+            self.timer.start(30)  # Aproximadamente 30 FPS
+            self.play_button.setText("⏯️")
+            self.update_display()
             
         self.filter_selector.setCurrentText("Sem Filtro")
 
@@ -268,10 +293,10 @@ class MainWindow(QWidget):
         self.is_playing = not self.is_playing
         if self.is_playing:
             self.timer.start(30)  # Aproximadamente 30 FPS
-            self.play_button.setText("⏸︎")
+            self.play_button.setText("⏯️")
         else:
             self.timer.stop()
-            self.play_button.setText("▶️")
+            self.play_button.setText("⏯️")
 
     def zoom_in(self):
         if self.zoom_factor < self.max_zoom:
@@ -309,7 +334,6 @@ class MainWindow(QWidget):
             self.frames_cut.append(self.current_frame)
             print("Frame cortado")
             print(len(self.frames_cut))
-
 
     def update_display(self):
         if self.current_frame is None:
@@ -372,7 +396,8 @@ class MainWindow(QWidget):
         else:
             self.timer.stop()
             self.is_playing = False
-            self.play_button.setText("Play")
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            self.play_button.setText("▶️")
             
     def map_to_image_coordinates(self, pos):
         if self.current_frame is None:
@@ -581,12 +606,13 @@ class MainWindow(QWidget):
             self.video_path = file_url
             self.play_button.setEnabled(True)
             self.load_video()
+            self.load_frames_list()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.update_display()
 
-    def saveFile (self, event): 
+    def saveFile (self, event):   
       mode = self.mode_selector.currentText()
       if self.current_frame is not None:
         if(mode == "Imagem"):
@@ -599,6 +625,8 @@ class MainWindow(QWidget):
                 cv2.imwrite(file_path, self.current_frame)
             print("Arquivo salvo com sucesso")
         if(mode == "Vídeo"):
+          print("Teste para ver a lista de frames")
+          print(self.frames_list)
           file_path, _ = QFileDialog.getSaveFileName(self, "Salvar Arquivo", "", "Vídeos (*.mp4 *.avi *.mkv *.mov)")
           if file_path:
             if(file_path.endswith(('.mp4', '.avi', '.mkv', '.mov'))):
@@ -623,3 +651,14 @@ class MainWindow(QWidget):
             QMessageBox().information(self, "Sucesso", "Arquivo salvo com sucesso")
       else:
           print("Nenhum frame para salvar")
+
+    def load_frames_list(self):
+        cap = self.cap
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+            self.frames_list.append(frame)
+        print("Frames carregados com sucesso")
+        print("Lista de Frames: ", self.frames_list)
+    
