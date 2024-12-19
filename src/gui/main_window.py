@@ -1,12 +1,10 @@
 import sys
 import cv2
-import threading
-from concurrent.futures import ThreadPoolExecutor
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QComboBox, QFileDialog, QHBoxLayout, QMessageBox
+    QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QComboBox, QFileDialog, QHBoxLayout, QSlider, QMessageBox
 )
 from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtCore import QTimer, Qt, QRect
+from PyQt5.QtCore import QTimer, Qt, QRect, QThread, pyqtSignal
 
 from ..filters.grayscale import converter_cinza, conversao_binaria
 from ..filters.convolution import *
@@ -87,8 +85,8 @@ class MainWindow(QWidget):
         #Botão de Reverso
         self.reverse_button = QPushButton("◀")
         controls_layout.addWidget(self.reverse_button)
-        #self.reverse_button.clicked.connect(self.toggle_reverse)
-        #self.reverse_button.setEnabled(False)
+        self.reverse_button.clicked.connect(self.toggle_reverse)
+        self.reverse_button.setEnabled(False)
         #self.is_reversing = False
         self.reverse_button.setToolTip('Reproduzir o vídeo em reverso')
 
@@ -161,8 +159,11 @@ class MainWindow(QWidget):
 
 
         #variaveis para criar uma lista de frames ao carregar um vídeo
-        #tentativa de ser assíncrono em python (...que medo)
+        #tentativa de utilizar threads em python (...que medo)
         self.frames_list = []
+        self.frames_list_reversed = []
+        self.is_reversing = False
+        self.reverse_counter = 0
 
 
         #variaveis para controle de Interpolation
@@ -190,6 +191,7 @@ class MainWindow(QWidget):
                 self.button_slowMode.setEnabled(True)
                 self.button_cutMode.setEnabled(True)
                 self.save_imageOrVideo.setEnabled(True)
+                self.reverse_button.setEnabled(True)
                 self.load_video()
                 self.load_frames_list()
         elif mode == "Webcam":
@@ -240,7 +242,7 @@ class MainWindow(QWidget):
 
         self.update_display()
 
-    def start_cam(self):
+    def start_cam(self): 
         if self.cap is not None and self.cap.isOpened():
             self.cap.release()
 
@@ -386,6 +388,19 @@ class MainWindow(QWidget):
         if self.cap is None or not self.cap.isOpened():
             return
 
+        if self.is_reversing:
+            if(self.reverse_counter == 0):
+                self.timer.stop()
+                self.reverse_counter = len(self.frames_list_reversed) - 1
+                self.timer.start(30)
+            self.original_frame = self.frames_list_reversed[self.reverse_counter]
+            print(f"Reverse Counter: {self.reverse_counter}, Total Frames: {len(self.frames_list_reversed)}")
+            self.reverse_counter -= 1
+            #self.update_ref_frame()
+            #self.select_filter()
+            self.update_display()
+            return
+         
         ret, frame = self.cap.read()
         if ret:
             self.original_frame = frame
@@ -397,6 +412,7 @@ class MainWindow(QWidget):
             self.timer.stop()
             self.is_playing = False
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            self.reverse_counter = len(self.frames_list_reversed) - 1
             self.play_button.setText("▶️")
             
     def map_to_image_coordinates(self, pos):
@@ -454,8 +470,7 @@ class MainWindow(QWidget):
             self.roi_end = None
             self.video_label.setCursor(Qt.CrossCursor)  # Altere o cursor para indicar a seleção
             
-    def update_display_with_frame(self, frame):
-        
+    def update_display_with_frame(self, frame): 
         if frame is None:
             return
 
@@ -498,7 +513,6 @@ class MainWindow(QWidget):
         pixmap = QPixmap.fromImage(q_img)
         self.video_label.setPixmap(pixmap)
         self.video_label.setAlignment(Qt.AlignCenter)
-
 
     def update_roi_overlay(self):
         if self.roi_start and self.roi_end and self.ref_frame is not None:
@@ -659,6 +673,15 @@ class MainWindow(QWidget):
             if not ret:
                 break
             self.frames_list.append(frame)
+        self.frames_list_reversed = self.frames_list[::-1]
+        self.reverse_counter = len(self.frames_list_reversed) - 1
         print("Frames carregados com sucesso")
         print("Lista de Frames: ", self.frames_list)
     
+    def toggle_reverse(self):
+        if(self.is_reversing):
+            self.reverse_button.setText("◀ OFF")
+            self.is_reversing = False
+        else:
+            self.is_reversing = True
+            self.reverse_button.setText("◀ ON")
