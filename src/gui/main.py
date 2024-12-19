@@ -72,13 +72,13 @@ class MainWindow(QMainWindow):
                     ret, frame = cap.read()
                     if not ret:
                         break
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    # frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     self.frames_list.append(frame_rgb)
                 cap.release()
             else:
                 # Se for uma imagem
                 frame_rgb = cv2.imread(self.file_path)
-                frame_rgb = cv2.cvtColor(frame_rgb, cv2.COLOR_BGR2RGB)
+                # frame_rgb = cv2.cvtColor(frame_rgb, cv2.COLOR_BGR2RGB)
                 self.frames_list.append(frame_rgb)
             
             self.display.update_display()
