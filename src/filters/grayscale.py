@@ -3,7 +3,6 @@ import cv2
 def apply_grayscale(frame):
     return cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-
 def converter_cinza(frame):
     frame_convertido = cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
     frame_cinza = cv2.cvtColor(frame_convertido,cv2.COLOR_RGB2GRAY)

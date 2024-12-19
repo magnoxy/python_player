@@ -8,6 +8,7 @@ from PyQt5.QtCore import QTimer, Qt, QRect, QThread, pyqtSignal
 
 from ..filters.grayscale import converter_cinza, conversao_binaria
 from ..filters.convolution import *
+from ..frames.FilteredFrame import apply_filter_to_frame, normalizar_frame
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -184,6 +185,9 @@ class MainWindow(QWidget):
         elif mode == "Vídeo":
             file_path, _ = QFileDialog.getOpenFileName(self, "Selecione um Vídeo", "", "Vídeos (*.mp4 *.avi *.mkv *.mov)")
             if file_path:
+                #limpa os frames do vídeo anterior
+                self.frames_list.clear()
+
                 self.video_path = file_path
                 #habilita botões de vídeo
                 self.play_button.setEnabled(True)
@@ -396,6 +400,7 @@ class MainWindow(QWidget):
             self.original_frame = self.frames_list_reversed[self.reverse_counter]
             print(f"Reverse Counter: {self.reverse_counter}, Total Frames: {len(self.frames_list_reversed)}")
             self.reverse_counter -= 1
+            self.current_frame = self.frames_list_reversed[self.reverse_counter]
             #self.update_ref_frame()
             #self.select_filter()
             self.update_display()
@@ -407,12 +412,15 @@ class MainWindow(QWidget):
             self.original_image = frame
             self.update_ref_frame()
             self.select_filter()
+            if(self.roi_start or self.roi_end):
+                self.crop_roi()
+
             # self.update_display()
         else:
             self.timer.stop()
             self.is_playing = False
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-            self.reverse_counter = len(self.frames_list_reversed) - 1
+            self.reverse_counter = 0
             self.play_button.setText("▶️")
             
     def map_to_image_coordinates(self, pos):
@@ -567,6 +575,21 @@ class MainWindow(QWidget):
         self.roi_frame = None;
         self.cut_image.setEnabled(False)
         self.update_display()
+
+    def cut_frame_with_roi(self, frame):
+        x, y, w, h = (
+                self.roi_rect.left(),
+                self.roi_rect.top(),
+                self.roi_rect.width(),
+                self.roi_rect.height(),
+            )
+        x1, y1 = int(x), int(y)
+        x2, y2 = x1 + int(w), y1 + int(h)
+        return frame[y1:y2, x1:x2]
+    
+    # def retorna_altura_largura_do_corte(self, largura, altura):
+    
+        
             
     def mousePressEvent(self, event):
         if self.is_selecting_roi and event.button() == Qt.LeftButton:
@@ -626,45 +649,65 @@ class MainWindow(QWidget):
         super().resizeEvent(event)
         self.update_display()
 
+
     def saveFile (self, event):   
       mode = self.mode_selector.currentText()
       if self.current_frame is not None:
         if(mode == "Imagem"):
           file_path, _ = QFileDialog.getSaveFileName(self, "Salvar Arquivo", "", "Imagens (*.png *.jpg *.jpeg *.bmp)")
+          self.processSaveImage(file_path, self.current_frame)
+        if(mode == "Vídeo"):
+          file_path, _ = QFileDialog.getSaveFileName(self, "Salvar Arquivo", "", "Vídeos (*.mp4 *.avi *.mkv *.mov)")
+          print("file_path: ", file_path)
           if file_path:
+              print("chamou a func process video")
+              self.processSaveVideo(file_path)
+          else:
+             QMessageBox().warning(self, "Erro", "Nenhum caminhjo selecionado para exportar!")
+      else:
+          QMessageBox().warning(self, "Erro", "Nenhum frame selecionado para exportar!")
+
+    def processSaveImage(self, file_path, frame):
+        if file_path:
             if(file_path.endswith(('.png', '.jpg', '.jpeg', '.bmp'))):
                 cv2.imwrite(file_path, self.current_frame)
             else: 
                 file_path += ".png"
                 cv2.imwrite(file_path, self.current_frame)
-            print("Arquivo salvo com sucesso")
-        if(mode == "Vídeo"):
-          print("Teste para ver a lista de frames")
-          print(self.frames_list)
-          file_path, _ = QFileDialog.getSaveFileName(self, "Salvar Arquivo", "", "Vídeos (*.mp4 *.avi *.mkv *.mov)")
-          if file_path:
-            if(file_path.endswith(('.mp4', '.avi', '.mkv', '.mov'))):
-              fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-              cap = self.cap
-              frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-              frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-              out = cv2.VideoWriter(file_path, fourcc, 30.0, (frame_width, frame_height))
-              while cap.isOpened():
-                ret, frame = cap.read()   
-                out.write(frame)
-                if not ret:
-                  break
-              out.release()
-              QMessageBox().information(self, "Sucesso", "Arquivo salvo com sucesso")
-            else: 
-              file_path += ".mp4"
-              fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-              out = cv2.VideoWriter(file_path, fourcc, 30.0, (self.current_frame.shape[1], self.current_frame.shape[0]))
-              out.write(self.current_frame)
-              out.release()
-            QMessageBox().information(self, "Sucesso", "Arquivo salvo com sucesso")
-      else:
-          print("Nenhum frame para salvar")
+            QMessageBox().information(self, "Sucesso", "Arquivo salvo com sucesso!")
+    
+    def processSaveVideo(self, file_path):
+        if not file_path.endswith(('.mp4', '.avi', '.mkv', '.mov')):
+            file_path += ".avi"
+        
+        codec = cv2.VideoWriter_fourcc(*'MJPG')
+        #codec = cv2.VideoWriter_fourcc(*'XVID') 
+        #codec = cv2.VideoWriter_fourcc(*'mp4v')
+        cap = self.cap
+        largura = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        altura = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        #se tem corte no vídeo, ajuste de largura e altura
+        if(self.roi_rect and self.roi_start):
+            x, y, w, h = (
+                self.roi_rect.left(),
+                self.roi_rect.top(),
+                self.roi_rect.width(),
+                self.roi_rect.height(),
+            )
+            largura = w
+            altura = h
+        out = cv2.VideoWriter(file_path, codec, self.playback_speed, (largura, altura))
+        for frame in self.frames_list:
+            frame_filtered = apply_filter_to_frame(frame, self.filter_selector.currentText())
+            frame_filtered = normalizar_frame(frame_filtered)
+            if(self.roi_start or self.roi_end):
+                frame_filtered = self.cut_frame_with_roi(frame_filtered)
+            out.write(frame_filtered)
+        out.release()
+        QMessageBox().information(self, "Sucesso", "Arquivo salvo com sucesso!")
+
+    def processSaveWebcam(self, file_path):
+        return 0
 
     def load_frames_list(self):
         cap = self.cap
