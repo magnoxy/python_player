@@ -15,11 +15,16 @@ class ModeSelector(QWidget):
         self.layout.addWidget(self.mode_selector)
 
         # Caminho para o ícone
-        icon_path = os.path.join("src", "assets", "arquivo.png")
+        icons_path = os.path.join("src", "assets")
+        icon_file = os.path.join(icons_path, "arquivo.png")
+        icon_save = os.path.join(icons_path, "salvar.png")
 
         # Botão para abrir arquivo
-        self.open_button = QPushButton(QIcon(icon_path), "")  # Passa o caminho do ícone
+        self.open_button = QPushButton(QIcon(icon_file), "")  # Passa o caminho do ícone
         self.layout.addWidget(self.open_button)
+        
+        self.save_button = QPushButton(QIcon(icon_save), "")
+        self.layout.addWidget(self.save_button)
 
         # Conecta o botão ao método de abertura de diálogo
         self.open_button.clicked.connect(self.open_file_dialog)
@@ -37,7 +42,9 @@ class ModeSelector(QWidget):
             )
             if file_path:
                 self.parent.file_path = file_path
-                # Você pode adicionar lógica para exibir a imagem no frame original ou manipular
+                self.parent.reset_frames()
+                # Atualiza o display para a imagem carregada
+                self.parent.update_display()
         elif mode == "Vídeo":
             file_path, _ = QFileDialog.getOpenFileName(
                 self,
@@ -47,8 +54,9 @@ class ModeSelector(QWidget):
             )
             if file_path:
                 self.parent.file_path = file_path
-                # Habilite botões específicos para vídeo, se necessário
+                self.parent.reset_frames()
+                # Atualiza o display para o vídeo carregado
+                self.parent.update_display()
         elif mode == "Webcam":
             self.parent.file_path = "Webcam"
             # Chame o método para iniciar a webcam, se implementado
-            

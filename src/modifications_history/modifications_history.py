@@ -40,6 +40,7 @@ class ModificationHistory:
             "params": params or {}
         }
 
+        print(self.history)
         self.add_virtual_modification(entry)
         
         if self.parent.cascade:
@@ -53,8 +54,16 @@ class ModificationHistory:
     def get_history(self):
         """Retorna o histórico completo de modificações."""
         return self.history
+    
+    def clear_virtual_modification(self):
+        """Limpa o histórico de modificações."""
+        self.virtual_modification = None
 
     def clear_history(self):
         """Limpa o histórico de modificações."""
+        self.history = []
+        
+    def clear_all(self):
+        """Limpa todos os itens do objeto."""
         self.history = []
         self.virtual_modification = None
